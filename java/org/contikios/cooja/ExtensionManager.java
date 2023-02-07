@@ -56,6 +56,7 @@ import org.contikios.cooja.plugins.ScriptRunner;
 import org.contikios.cooja.plugins.TimeLine;
 import org.contikios.cooja.plugins.VariableWatcher;
 import org.contikios.cooja.plugins.Visualizer;
+import org.contikios.cooja.radiomediums.FrequencySelectiveUDGM;
 import org.contikios.cooja.radiomediums.DirectedGraphMedium;
 import org.contikios.cooja.radiomediums.LogisticLoss;
 import org.contikios.cooja.radiomediums.SilentRadioMedium;
@@ -94,6 +95,7 @@ public class ExtensionManager {
     registerBuiltinPlugin(MspStackWatcher.class);
     registerBuiltinPlugin(MspCycleWatcher.class);
 
+    registerBuiltinRadioMedium(FrequencySelectiveUDGM.class);
     registerBuiltinRadioMedium(UDGM.class);
     registerBuiltinRadioMedium(UDGMConstantLoss.class);
     registerBuiltinRadioMedium(DirectedGraphMedium.class);
