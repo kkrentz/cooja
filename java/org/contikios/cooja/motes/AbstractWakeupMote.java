@@ -249,7 +249,8 @@ public abstract class AbstractWakeupMote<T extends MoteType, M extends MemoryInt
    */
   public boolean scheduleNextWakeup(long time) {
     assert simulation.isSimulationThread() : "Scheduling event from non-simulation thread (" + Thread.currentThread() + ")";
-      
+    assert time >= simulation.getSimulationTime();
+
     if (executeMoteEvent.isScheduled() &&
         nextWakeupTime <= time) {
       /* Already scheduled wakeup event precedes given time - ignore wakeup request */
