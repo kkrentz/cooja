@@ -203,8 +203,6 @@ public class UDGM extends AbstractRadioMedium {
            it will be activated later when the radio will be
            turned on and switched to the right channel. This behavior
            is consistent with the case when receiver is turned off. */
-        newConnection.addInterfered(recv);
-
         continue;
       }
       Position recvPos = recv.getPosition();
