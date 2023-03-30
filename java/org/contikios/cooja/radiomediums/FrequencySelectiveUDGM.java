@@ -47,13 +47,13 @@ public class FrequencySelectiveUDGM extends UDGM {
   private static final int MIN_CHANNEL = 11;
   private static final int MAX_CHANNEL = 26;
   private static final int CHANNELS_COUNT = MAX_CHANNEL - MIN_CHANNEL + 1;
-  private double worstChannelsSuccessRatio = 0.7;
-  private double bestChannelsSuccessRatio = 0.99;
-  private Map<Radio, Map<Radio, double[]>> edgeToSuccessRatios;
+  private double worstChannelsBitErrorRate = 0.001d;
+  private double bestChannelsBitErrorRate = 0.00001d;
+  private Map<Radio, Map<Radio, double[]>> edgeToBitErrorRates;
 
   public FrequencySelectiveUDGM(Simulation simulation) {
     super(simulation);
-    edgeToSuccessRatios = new HashMap<>();
+    edgeToBitErrorRates = new HashMap<>();
   }
 
   @Override
@@ -61,12 +61,12 @@ public class FrequencySelectiveUDGM extends UDGM {
     return 1.0d;
   }
 
-  private double[] generateSuccessRatios() {
+  private double[] generateBitErrorRates() {
     Random random = simulation.getRandomGenerator();
-    double sucessRatios[] = new double[CHANNELS_COUNT];
+    double bitErrorRates[] = new double[CHANNELS_COUNT];
     Set<Integer> setIndices = new HashSet<>();
-    double nextSucessRatio = worstChannelsSuccessRatio;
-    double stepSize = (bestChannelsSuccessRatio - worstChannelsSuccessRatio)
+    double nextBitErrorRate = bestChannelsBitErrorRate;
+    double stepSize = (worstChannelsBitErrorRate - bestChannelsBitErrorRate)
         / (CHANNELS_COUNT - 1);
 
     while(setIndices.size() < CHANNELS_COUNT) {
@@ -75,38 +75,38 @@ public class FrequencySelectiveUDGM extends UDGM {
         index = random.nextInt(CHANNELS_COUNT);
       } while(setIndices.contains(index));
       setIndices.add(index);
-      sucessRatios[index] = nextSucessRatio;
-      nextSucessRatio += stepSize;
+      bitErrorRates[index] = nextBitErrorRate;
+      nextBitErrorRate += stepSize;
     }
-    return sucessRatios;
+    return bitErrorRates;
   }
 
-  private Map<Radio, double[]> getOrCreateSuccessRatiosMap(Radio radio) {
-    Map<Radio, double[]> sucessRatiosMap = edgeToSuccessRatios.get(radio);
-    if (sucessRatiosMap == null) {
-      sucessRatiosMap = new HashMap<Radio, double[]>();
-      edgeToSuccessRatios.put(radio, sucessRatiosMap);
+  private Map<Radio, double[]> getOrCreateBitErrorRatesMap(Radio radio) {
+    Map<Radio, double[]> bitErrorRates = edgeToBitErrorRates.get(radio);
+    if (bitErrorRates == null) {
+      bitErrorRates = new HashMap<Radio, double[]>();
+      edgeToBitErrorRates.put(radio, bitErrorRates);
     }
-    return sucessRatiosMap;
+    return bitErrorRates;
   }
 
-  private double[] getOrCreateSuccessRatiosBetween(Radio a, Radio b) {
-    Map<Radio, double[]> asSuccessRatios = getOrCreateSuccessRatiosMap(a);
-    Map<Radio, double[]> bsSuccessRatios = getOrCreateSuccessRatiosMap(b);
+  private double[] getOrCreateBitErrorRatesBetween(Radio a, Radio b) {
+    Map<Radio, double[]> asBitErrorRates = getOrCreateBitErrorRatesMap(a);
+    Map<Radio, double[]> bsBitErrorRates = getOrCreateBitErrorRatesMap(b);
 
-    double[] sucessRatios = asSuccessRatios.get(b);
-    if(sucessRatios != null) {
-      return sucessRatios;
+    double[] bitErrorRates = asBitErrorRates.get(b);
+    if(bitErrorRates != null) {
+      return bitErrorRates;
     }
 
-    sucessRatios = bsSuccessRatios.get(a);
-    if(sucessRatios != null) {
-      return sucessRatios;
+    bitErrorRates = bsBitErrorRates.get(a);
+    if(bitErrorRates != null) {
+      return bitErrorRates;
     }
 
-    sucessRatios = generateSuccessRatios();
-    asSuccessRatios.put(b, sucessRatios);
-    return sucessRatios;
+    bitErrorRates = generateBitErrorRates();
+    asBitErrorRates.put(b, bitErrorRates);
+    return bitErrorRates;
   }
 
   @Override
@@ -116,21 +116,23 @@ public class FrequencySelectiveUDGM extends UDGM {
       return 0.0d;
     }
 
-    double[] successRatios = getOrCreateSuccessRatiosBetween(source, dest);
-    return successRatios[source.getChannel() - MIN_CHANNEL];
+    double[] bitErrorRates = getOrCreateBitErrorRatesBetween(source, dest);
+    int packetLength = source.getLastPacketTransmitted().getPacketData().length;
+    double bitErrorRate = bitErrorRates[source.getChannel() - MIN_CHANNEL];
+    return Math.pow(1 - bitErrorRate, packetLength * 8);
   }
 
   public void deteriorateLink(Radio a, Radio b) {
-    double[] sucessRatios = getOrCreateSuccessRatiosBetween(a, b);
-    for (int i = 0; i < sucessRatios.length; i++) {
-      sucessRatios[i] = sucessRatios[i] * 0.9;
+    double[] bitErrorRates = getOrCreateBitErrorRatesBetween(a, b);
+    for (int i = 0; i < bitErrorRates.length; i++) {
+      bitErrorRates[i] *= 10;
     }
   }
 
   public void improveLink(Radio a, Radio b) {
-    double[] sucessRatios = getOrCreateSuccessRatiosBetween(a, b);
-    for (int i = 0; i < sucessRatios.length; i++) {
-      sucessRatios[i] = sucessRatios[i] / 0.9;
+    double[] bitErrorRates = getOrCreateBitErrorRatesBetween(a, b);
+    for (int i = 0; i < bitErrorRates.length; i++) {
+      bitErrorRates[i] /= 10;
     }
   }
 
@@ -139,12 +141,12 @@ public class FrequencySelectiveUDGM extends UDGM {
     Collection<Element> config = super.getConfigXML();
     Element element;
 
-    element = new Element("worst_channels_success_ratio");
-    element.setText(Double.toString(worstChannelsSuccessRatio));
+    element = new Element("worst_channels_bit_error_rate");
+    element.setText(Double.toString(worstChannelsBitErrorRate));
     config.add(element);
 
-    element = new Element("best_channels_success_ratio");
-    element.setText(Double.toString(bestChannelsSuccessRatio));
+    element = new Element("best_channels_bit_error_rate");
+    element.setText(Double.toString(bestChannelsBitErrorRate));
     config.add(element);
 
     return config;
@@ -154,11 +156,11 @@ public class FrequencySelectiveUDGM extends UDGM {
   public boolean setConfigXML(Collection<Element> configXML, boolean visAvailable) {
     super.setConfigXML(configXML, visAvailable);
     for (Element element : configXML) {
-      if (element.getName().equals("worst_channels_success_ratio")) {
-        worstChannelsSuccessRatio = Double.parseDouble(element.getText());
+      if (element.getName().equals("worst_channels_bit_error_rate")) {
+        worstChannelsBitErrorRate = Double.parseDouble(element.getText());
       }
-      if (element.getName().equals("best_channels_success_ratio")) {
-        bestChannelsSuccessRatio = Double.parseDouble(element.getText());
+      if (element.getName().equals("best_channels_bit_error_rate")) {
+        bestChannelsBitErrorRate = Double.parseDouble(element.getText());
       }
     }
     return true;
