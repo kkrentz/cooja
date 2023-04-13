@@ -61,12 +61,13 @@ public class FrequencySelectiveUDGM extends UDGM {
     return 1.0d;
   }
 
-  private double[] generateSuccessRatios() {
+  private double[] generateSuccessRatios(boolean involvesMote5) {
     Random random = simulation.getRandomGenerator();
     double sucessRatios[] = new double[CHANNELS_COUNT];
     Set<Integer> setIndices = new HashSet<>();
     double nextSucessRatio = worstChannelsSuccessRatio;
-    double stepSize = (bestChannelsSuccessRatio - worstChannelsSuccessRatio)
+    double stepSize = ((involvesMote5 ? .95 : bestChannelsSuccessRatio)
+        - worstChannelsSuccessRatio)
         / (CHANNELS_COUNT - 1);
 
     while(setIndices.size() < CHANNELS_COUNT) {
@@ -104,7 +105,7 @@ public class FrequencySelectiveUDGM extends UDGM {
       return sucessRatios;
     }
 
-    sucessRatios = generateSuccessRatios();
+    sucessRatios = generateSuccessRatios((a.getMote().getID() == 5) || (b.getMote().getID() == 5));
     asSuccessRatios.put(b, sucessRatios);
     return sucessRatios;
   }
