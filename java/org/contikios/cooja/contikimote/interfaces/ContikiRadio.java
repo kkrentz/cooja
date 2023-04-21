@@ -130,6 +130,10 @@ public class ContikiRadio extends Radio implements PolledAfterActiveTicks {
 
   private long receptionStartTime = -1;
 
+  private long listenStartTime = -1;
+  private long listenTime;
+  private long transmissionTime;
+
   /**
    * Creates an interface to the radio at mote.
    *
@@ -365,6 +369,10 @@ public class ContikiRadio extends Radio implements PolledAfterActiveTicks {
     return (int) ((now - transmissionStartTime) / TICKS_PER_BYTE);
   }
 
+  public String getStats() {
+    return "E," + getMote().getID() + "," +  listenTime +  "," + transmissionTime + "\n";
+  }
+
   @Override
   public void doActionsAfterTick() {
     long now = mote.getSimulation().getSimulationTime();
@@ -375,6 +383,7 @@ public class ContikiRadio extends Radio implements PolledAfterActiveTicks {
 
       if (!radioOn) {
         if (isTransmitting()) {
+          transmissionTime += now - transmissionStartTime;
           /* cause ongoing receptions to fail by invalidating CRC or MIC */
           packetFromMote.getPacketData()[packetFromMote.getPacketData().length - 1] =
               (byte) ~packetFromMote.getPacketData()[packetFromMote.getPacketData().length - 1];
@@ -382,12 +391,15 @@ public class ContikiRadio extends Radio implements PolledAfterActiveTicks {
           radioEventTriggers.trigger(RadioEvent.TRANSMISSION_FINISHED, this);
           /* TODO in the case of a canceled transmission, receivers that received
            * an SHR interrupt should also get FIFOP and RXDONE interrupts */
+        } else {
+          listenTime += now - listenStartTime;
         }
         myMoteMemory.setIntValueOf("simPendingIncomingFrame", 0);
         myMoteMemory.setIntValueOf("simReceiving", 0);
         myMoteMemory.setIntValueOf("simTransmitting", 0);
         lastEvent = RadioEvent.HW_OFF;
       } else {
+        listenStartTime = now;
         lastEvent = RadioEvent.HW_ON;
       }
 
@@ -465,6 +477,7 @@ public class ContikiRadio extends Radio implements PolledAfterActiveTicks {
       transmissionShrIssued = false;
       transmissionStartTime = now;
       alreadyTransmittedBytes = 0;
+      listenTime += now - listenStartTime;
 
       /* notify */
       lastEvent = RadioEvent.TRANSMISSION_STARTED;
@@ -515,9 +528,11 @@ public class ContikiRadio extends Radio implements PolledAfterActiveTicks {
               transmissionStartTime
                   + computeTransmissionDuration(alreadyTransmittedBytes + 1));
         } else {
+          transmissionTime += now - transmissionStartTime;
           myMoteMemory.setIntValueOf("simStopSequence", 0);
           /* either enter RX or switch off */
           if (shallEnterRxAfterTx()) {
+            listenStartTime = now;
             myMoteMemory.setIntValueOf("simPendingIncomingFrame", 0);
             myMoteMemory.setIntValueOf("simReceiving", 0);
           } else {
