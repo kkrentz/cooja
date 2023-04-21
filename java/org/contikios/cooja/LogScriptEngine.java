@@ -47,6 +47,8 @@ import javax.script.ScriptException;
 import javax.swing.JTextArea;
 import org.contikios.cooja.SimEventCentral.LogOutputEvent;
 import org.contikios.cooja.SimEventCentral.LogOutputListener;
+import org.contikios.cooja.contikimote.ContikiMote;
+import org.contikios.cooja.contikimote.interfaces.ContikiRadio;
 import org.contikios.cooja.plugins.ScriptRunner;
 import org.contikios.cooja.script.ScriptLog;
 import org.contikios.cooja.script.ScriptMote;
@@ -266,6 +268,11 @@ public class LogScriptEngine {
       }
       // rv == -1 means something else is shutting down Cooja, for example the SerialSocket commands in 17-tun-rpl-br.
       if (rv != -1) {
+        scriptLog("E,mote,rx,tx\n");
+        for(Mote mote : simulation.getMotes()) {
+          ContikiRadio radio = (ContikiRadio) mote.getInterfaces().getRadio();
+          scriptLog(radio.getStats());
+        }
         scriptLog(rv == 0 ? "TEST OK\n" : "TEST FAILED\n");
       }
       deactivateScript();
@@ -312,7 +319,7 @@ public class LogScriptEngine {
       int percentage = (int) (100 * progress);
       double secondsRemaining = estimatedLeft / 1000;
       long seconds = (long) secondsRemaining;
-      int tenthOfSeconds = (int) Math.round((10 * (secondsRemaining - (double)seconds)));
+      int tenthOfSeconds = (int) Math.round((10 * (secondsRemaining - seconds)));
       if (tenthOfSeconds == 10) {
         seconds++;
         tenthOfSeconds = 0;
